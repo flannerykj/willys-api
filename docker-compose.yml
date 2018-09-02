@@ -1,0 +1,26 @@
+version: "2"
+services:
+  server:
+    container_name: django_server
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    image: shakespeare_server_docker
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./api:/app
+    ports:
+      - "8000:8000"
+    links:
+      - db:db
+    environment:
+      - DATABASE_URL=mysql://flannerykj:cheesecake@db:3306/shakespeare_db
+  db:
+    container_name: mysql_django_db
+    build:
+      context: ./database
+      dockerfile: Dockerfile
+    image: mysql/mysql-server
+    ports:
+      - 3306
