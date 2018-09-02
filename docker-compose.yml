@@ -16,6 +16,7 @@ services:
       - db:db
     environment:
       - DATABASE_URL=mysql://flannerykj:cheesecake@db:3306/shakespeare_db
+      - DJANGO_SETTINGS_MODULE=mysite.settings
   db:
     container_name: mysql_django_db
     build:
