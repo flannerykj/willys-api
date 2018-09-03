@@ -1,4 +1,5 @@
 from django.db import models
+from django.core.exceptions import NON_FIELD_ERRORS
 
 GENDER_CHOICES = (
     ('M', 'Male'),
@@ -10,23 +11,22 @@ GENRE_CHOICES = (
     ('C', 'Comedy'),
     ('H', 'History')
 )
-RELATIONSHIP_TYPES = (
-    ('FA', 'Father'),
-    ('MO', 'Mother'),
-    ('BR', 'Brother'),
-    ('SI', 'Sister'),
-    ('FR', 'Friend'),
-    ('SO', 'Son'),
-    ('DA', 'Daughter'),
-    ('MA', 'Master'),
-    ('SE', 'Servant'),
-    ('EN', 'Enemy'),
-    ('CO', 'Cousin'),
-    ('NI', 'Niece'),
-    ('NE', 'Nephew'),
-    ('AU', 'Aunt'),
-    ('UN', 'Uncle')
-)
+
+class RelationshipType(models.Model):
+    relation = models.CharField(max_length=200)
+    masculine = models.CharField(max_length=200, null=True, blank=True)
+    feminine = models.CharField(max_length=200, null=True, blank=True)
+    counterpart = models.ForeignKey('self', null=True, blank=True, on_delete=models.SET_NULL)
+    def __str__(self):
+        return self.relation
+    def save(self, *args, **kwargs):
+        if not self.masculine:
+            self.masculine = self.relation
+        if not self.feminine:
+           self.feminine = self.relation
+        # if self.counterpart:
+            # self.counterpart.counterpart = self
+        super(RelationshipType, self).save(*args, **kwargs)
 
 TITLE_CHOICES = (
     ('KI', 'King'),
@@ -34,7 +34,6 @@ TITLE_CHOICES = (
     ('DU', 'Duke'),
     ('CO', 'Count'),
 )
-
 
 class Play(models.Model):
     name = models.CharField(max_length=200)
@@ -60,18 +59,17 @@ class Act(models.Model):
     play = models.ForeignKey(Play, on_delete=models.CASCADE)
     number = models.IntegerField()
     def __str__(self):
-        return self.play.name + ", Act " + self.number
+        return "Act " + str(self.number)
 
 class Scene(models.Model):
-    setting_text = models.TextField()
-    place = models.ForeignKey(Place, on_delete=models.SET_NULL, null=True)
+    setting_text = models.TextField(blank=True)
+    place = models.ForeignKey(Place, on_delete=models.SET_NULL, null=True, blank=True)
     act = models.ForeignKey(Act, on_delete=models.CASCADE)
     number = models.IntegerField()
     def __str__(self):
-        return self.act.play.name + ", Act " + self.play.act + ", Scene " + self.number
+        return "Act " + str(self.act.number) + ", Scene " + str(self.number)
 
 class Line(models.Model):
-    play_index = models.IntegerField()
     character = models.ForeignKey(Character, on_delete=models.SET_NULL, null=True)
     line_text = models.TextField()
     stage_direction = models.TextField()
@@ -81,6 +79,24 @@ class Line(models.Model):
         return self.scene.act.play.name + ", Index: ", + self.play_index
 
 class CharacterRelationship(models.Model):
-    subject_charater = models.ForeignKey(Character, on_delete=models.CASCADE, related_name='subject_character')
-    relationship_type = models.CharField(max_length=2, choices=RELATIONSHIP_TYPES)
-    object_character = models.ForeignKey(Character, on_delete=models.CASCADE, related_name='object_character')
+    character = models.ForeignKey(Character, on_delete=models.CASCADE, related_name='character')
+    relationship_type = models.ForeignKey(RelationshipType, on_delete=models.CASCADE)
+    of_character = models.ForeignKey(Character, on_delete=models.CASCADE, related_name='of_character')
+
+    class Meta:
+        unique_together = ('character', 'of_character',)
+
+    def save(self, create_related=True, *args, **kwargs):
+        if create_related:
+            result = super(CharacterRelationship, self).save(*args, **kwargs)
+            try:
+                # find existing, update relationship_type
+                counterpart = CharacterRelationship.objects.get(character=self.of_character, of_character=self.character)
+                counterpart.relationship_type = self.relationship_type.counterpart
+            except:
+                # create new
+                counterpart = CharacterRelationship(character=self.of_character, relationship_type=self.relationship_type.counterpart, of_character=self.character)
+            counterpart.save(create_related=False)
+        else:
+            result = super(CharacterRelationship, self).save(*args, **kwargs)
+        return result

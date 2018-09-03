@@ -7,6 +7,8 @@ name = "pypi"
 django = "*"
 mysqlclient = "*"
 django-getenv = "*"
+django-nested-inline = "*"
+django-nested-admin = "*"
 
 [dev-packages]
 

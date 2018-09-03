@@ -19,6 +19,7 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    'nested_admin',
     'plays.apps.PlaysConfig',
     'django.contrib.admin',
     'django.contrib.auth',
